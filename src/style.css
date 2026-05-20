@@ -230,6 +230,8 @@ html, body {
 
 #lobby-modal {
   width: min(420px, 100%);
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
   padding: 28px 28px 22px;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -324,8 +326,14 @@ html, body {
 }
 
 .lobby-primary:disabled {
-  opacity: 0.35;
+  opacity: 0.72;
   cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.55);
+  color: rgba(10, 10, 15, 0.75);
+}
+
+#start-race {
+  margin-top: 12px;
 }
 
 .lobby-secondary {

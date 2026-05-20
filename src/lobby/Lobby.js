@@ -205,6 +205,11 @@ export class Lobby {
 
   _renderRoom(msg) {
     this.el.roomInfo.classList.remove('hidden');
+
+    const isHost = msg.isHost ?? (this.network.playerId != null && msg.hostId === this.network.playerId);
+    const playerCount = msg.players?.length ?? 0;
+    const canStart = msg.canStart ?? (isHost && playerCount >= 2 && msg.state === 'lobby');
+
     this.el.playerList.innerHTML = msg.players
       .map((p, i) => {
         const host = p.id === msg.hostId ? ' ★' : '';
@@ -213,9 +218,17 @@ export class Lobby {
       })
       .join('');
 
-    this.el.startRace.disabled = !msg.canStart;
-    this.el.startRace.classList.toggle('hidden', !msg.isHost);
     this.el.createRoom.disabled = !!msg.roomId;
+
+    if (isHost) {
+      this.el.startRace.classList.remove('hidden');
+      this.el.startRace.disabled = !canStart;
+      this.el.startRace.textContent = canStart
+        ? 'Start Race'
+        : `Start Race (${Math.max(0, 2 - playerCount)} more needed)`;
+    } else {
+      this.el.startRace.classList.add('hidden');
+    }
   }
 
   _hostStart() {

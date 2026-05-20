@@ -63,7 +63,7 @@ export class RoomManager {
     room.lastActivity = Date.now();
     this._attachClient(ws, room.id, playerId);
 
-    this._broadcast(room, { type: 'room_update', ...this._roomSnapshot(room) });
+    this._broadcastRoomState(room, 'room_update');
     return this._roomSnapshot(room, playerId);
   }
 
@@ -88,7 +88,7 @@ export class RoomManager {
     }
 
     if (room.state === 'lobby') {
-      this._broadcast(room, { type: 'room_update', ...this._roomSnapshot(room) });
+      this._broadcastRoomState(room, 'room_update');
     } else {
       this._broadcast(room, {
         type: 'player_left',
@@ -199,6 +199,20 @@ export class RoomManager {
       const client = this.clients.get(pid);
       if (client?.ws.readyState === 1) {
         client.ws.send(JSON.stringify(message));
+      }
+    }
+  }
+
+  _broadcastRoomState(room, type = 'room_update', exceptPlayerId = null) {
+    for (const pid of room.players.keys()) {
+      if (pid === exceptPlayerId) continue;
+      const client = this.clients.get(pid);
+      if (client?.ws.readyState === 1) {
+        client.ws.send(JSON.stringify({
+          type,
+          ...this._roomSnapshot(room, pid),
+          invitePath: `/?room=${room.id}`,
+        }));
       }
     }
   }

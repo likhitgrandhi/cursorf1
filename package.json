@@ -1,0 +1,23 @@
+{
+  "name": "cursorf1",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "vite",
+    "dev:server": "node server/index.js",
+    "download-model": "node scripts/download-model.mjs",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "preview": "npm run build && npm run start"
+  },
+  "dependencies": {
+    "three": "^0.172.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "vite": "^6.0.0"
+  }
+}

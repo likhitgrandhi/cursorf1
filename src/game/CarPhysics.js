@@ -43,6 +43,11 @@ export class CarPhysics {
     this.wallHitTimer = 0;
     this.lastWallImpact = 0;
     this.draftBoost = 1;
+
+    /** Distance driven since last counted lap crossing */
+    this.distanceThisLap = 0;
+    /** Ignore SF line until a meaningful portion of the lap is complete */
+    this.minLapDistance = trackLength * 0.88;
   }
 
   get progress() {
@@ -66,11 +71,22 @@ export class CarPhysics {
   }
 
   checkLapCrossing() {
+    if (this.distanceThisLap < this.minLapDistance) return false;
+
     if (this.s >= this.trackLength && this.lastS < this.trackLength) {
       this.finishedLaps++;
       this.lap = this.finishedLaps + 1;
+      this.distanceThisLap = 0;
+      return true;
     }
+    return false;
+  }
+
+  resetForRaceStart() {
+    this.finishedLaps = 0;
+    this.lap = 1;
     this.lastS = this.s;
+    this.distanceThisLap = 0;
   }
 
   handleWallCollision(safeDt) {
@@ -151,10 +167,13 @@ export class CarPhysics {
     }
 
     this.s += this.v * safeDt;
+    this.distanceThisLap += this.v * safeDt;
 
     if (this.s >= this.trackLength) {
       this.checkLapCrossing();
       this.s %= this.trackLength;
+      this.lastS = this.s;
+    } else {
       this.lastS = this.s;
     }
   }

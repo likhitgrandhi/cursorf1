@@ -2,11 +2,12 @@ import * as THREE from 'three';
 
 /** Race flow: grid → countdown → multi-lap race → finish */
 export class RaceManager {
-  constructor({ totalLaps, trackName, onLapComplete, onRaceFinish }) {
+  constructor({ totalLaps, trackName, onLapComplete, onRaceFinish, onRaceGo }) {
     this.totalLaps = totalLaps;
     this.trackName = trackName;
     this.onLapComplete = onLapComplete;
     this.onRaceFinish = onRaceFinish;
+    this.onRaceGo = onRaceGo;
 
     this.state = 'grid'; // grid | countdown | racing | finished
     this.countdown = 3;
@@ -35,14 +36,15 @@ export class RaceManager {
           this.raceStarted = true;
           this.raceStartTime = performance.now();
           this.lapStartTime = performance.now();
+          this.onRaceGo?.();
         }
       }
       return;
     }
 
     if (this.state === 'racing' && playerPhysics) {
-      if (playerPhysics.lap > this._lastPlayerLap && playerPhysics.finishedLaps > 0) {
-        this._lastPlayerLap = playerPhysics.lap;
+      if (playerPhysics.finishedLaps > this._lastFinishedLaps) {
+        this._lastFinishedLaps = playerPhysics.finishedLaps;
         this.onLapComplete?.(playerPhysics.lap);
         if (playerPhysics.finishedLaps >= this.totalLaps) {
           this.state = 'finished';
@@ -67,6 +69,6 @@ export class RaceManager {
   }
 
   resetLapTracking() {
-    this._lastPlayerLap = 1;
+    this._lastFinishedLaps = 0;
   }
 }

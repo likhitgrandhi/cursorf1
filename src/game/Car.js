@@ -35,7 +35,7 @@ export class Car {
     this.crashFlash = 0;
 
     this.trailHistory = [];
-    this.maxTrail = 48;
+    this.maxTrail = 24;
     this.trailGroup = new THREE.Group();
 
     for (let side = 0; side < 2; side++) {

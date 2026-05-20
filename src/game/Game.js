@@ -45,6 +45,15 @@ export class Game {
     this.smoothCamTangent = new THREE.Vector3();
     this.shakePhase = 0;
     this.crashShake = 0;
+    this._lastRenderAt = 0;
+    this._targetFrameMs = 1000 / 60;
+    this._useBloom = false;
+    this._tabVisible = !document.hidden;
+
+    document.addEventListener('visibilitychange', () => {
+      this._tabVisible = !document.hidden;
+      this._targetFrameMs = this._tabVisible ? 1000 / 60 : 1000 / 10;
+    });
 
     if (!this.preview) {
       this.initRace();
@@ -60,13 +69,12 @@ export class Game {
   initRenderer() {
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.canvas,
-      antialias: true,
-      powerPreference: 'high-performance',
+      antialias: false,
+      powerPreference: 'default',
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
     this.renderer.setClearColor(0x000000);
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.enabled = false;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.58;
   }
@@ -85,14 +93,6 @@ export class Game {
 
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.35);
     dirLight.position.set(60, 80, 40);
-    dirLight.castShadow = true;
-    dirLight.shadow.mapSize.set(2048, 2048);
-    dirLight.shadow.camera.near = 1;
-    dirLight.shadow.camera.far = 400;
-    dirLight.shadow.camera.left = -120;
-    dirLight.shadow.camera.right = 120;
-    dirLight.shadow.camera.top = 120;
-    dirLight.shadow.camera.bottom = -120;
     this.scene.add(dirLight);
     this.keyLight = dirLight;
 
@@ -100,7 +100,7 @@ export class Game {
     rim.position.set(-60, 40, -50);
     this.scene.add(rim);
 
-    this.carLight = new THREE.PointLight(0xffffff, 1.4, 28, 1.4);
+    this.carLight = new THREE.PointLight(0xffffff, 0.9, 22, 1.6);
     this.carLight.position.set(0, 3, 0);
     this.scene.add(this.carLight);
 
@@ -120,6 +120,7 @@ export class Game {
 
   startSession(config) {
     this.preview = false;
+    this._targetFrameMs = 1000 / 60;
     this.session = config;
     this.initRace(config);
 
@@ -211,6 +212,7 @@ export class Game {
       physics.s = s;
       physics.lateral = lateral;
       physics.v = 0;
+      if (physics.lastS !== undefined) physics.lastS = s;
       car.initPhysics(physics);
 
       if (p.isAI) {
@@ -230,6 +232,11 @@ export class Game {
       trackName: this.trackDef.name,
       onLapComplete: (lap) => this.hud.onLapComplete(lap),
       onRaceFinish: () => this.hud.onRaceFinish(),
+      onRaceGo: () => {
+        for (const car of this.cars) {
+          if (car.physics?.resetForRaceStart) car.physics.resetForRaceStart();
+        }
+      },
     });
     this.race.resetLapTracking();
 
@@ -249,13 +256,20 @@ export class Game {
   initPostProcessing() {
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloomPass = new UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.55,
-      0.35,
-      0.9
-    );
-    this.composer.addPass(this.bloomPass);
+    if (this._useBloom) {
+      this.bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        0.35,
+        0.3,
+        0.95
+      );
+      this.composer.addPass(this.bloomPass);
+    }
+  }
+
+  renderFrame() {
+    if (this._useBloom && this.composer) this.composer.render();
+    else this.renderer.render(this.scene, this.camera);
   }
 
   getSteerInput() {
@@ -435,13 +449,21 @@ export class Game {
 
   animate() {
     requestAnimationFrame(this.animate);
+
+    const now = performance.now();
+    const frameMs = this.preview ? 1000 / 30 : this._targetFrameMs;
+    if (now - this._lastRenderAt < frameMs) return;
+    this._lastRenderAt = now;
+
     const dt = Math.min(this.clock.getDelta(), 0.033);
 
     if (this.preview) {
       this.updatePreviewCamera(dt);
-      this.composer.render();
+      this.renderFrame();
       return;
     }
+
+    if (!this.player?.physics) return;
 
     this.race.update(dt, this.player.physics);
     this.updatePlayer(dt);
@@ -460,6 +482,6 @@ export class Game {
       crashed: this.player.physics.isCrashed,
     });
 
-    this.composer.render();
+    this.renderFrame();
   }
 }

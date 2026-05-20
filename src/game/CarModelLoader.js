@@ -240,12 +240,12 @@ async function tryLoadModels() {
       loadedModelId = url.includes('ferrari-sf-25') ? 'ferrari-sf-25' : 'f1-2022';
       baseScene = gltf.scene;
       normalizeModel(baseScene);
-      baseScene.traverse((c) => {
-        if (c.isMesh) {
-          c.castShadow = true;
-          c.receiveShadow = true;
-        }
-      });
+        baseScene.traverse((c) => {
+          if (c.isMesh) {
+            c.castShadow = false;
+            c.receiveShadow = false;
+          }
+        });
       console.info(`Loaded car model: ${loadedModelId} from ${url}`);
       return baseScene;
     } catch (err) {

@@ -27,6 +27,7 @@ export class Game {
     this.clock = new THREE.Clock();
     this.input = new Input();
     this.preview = options.preview ?? false;
+    this.engineAudio = options.engineAudio ?? null;
     this.session = null;
     this.multiplayer = null;
     this.previewAngle = 0;
@@ -459,6 +460,10 @@ export class Game {
 
     if (this.preview) {
       this.updatePreviewCamera(dt);
+      if (this.engineAudio?.unlocked) {
+        const idle = 0.22 + Math.sin(this.previewAngle * 2.4) * 0.12;
+        this.engineAudio.update(dt, { throttle: idle, racing: false });
+      }
       this.renderFrame();
       return;
     }
@@ -481,6 +486,20 @@ export class Game {
       totalLaps: this.totalLaps,
       crashed: this.player.physics.isCrashed,
     });
+
+    if (this.engineAudio?.unlocked) {
+      const p = this.player.physics;
+      const frame = getTrackFrame(this.curve, p.progress, this.trackLength, this.sampler);
+      this.engineAudio.update(dt, {
+        speed: p.v,
+        maxSpeed: p.maxSpeed,
+        throttle: this.input.up ? 1 : 0,
+        brake: this.input.down ? 1 : 0,
+        steer: Math.abs(this.getSteerInput()),
+        curvature: frame.curvature,
+        racing: this.race.isRacing,
+      });
+    }
 
     this.renderFrame();
   }

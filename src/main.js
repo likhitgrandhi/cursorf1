@@ -1,4 +1,5 @@
 import { Game } from './game/Game.js';
+import { EngineAudio } from './game/EngineAudio.js';
 import { loadF1Model } from './game/CarModelLoader.js';
 import { Lobby } from './lobby/Lobby.js';
 
@@ -8,11 +9,14 @@ const lobbyStatus = document.getElementById('lobby-status');
 
 lobbyStatus.textContent = 'Loading F1 models…';
 
+const engineAudio = new EngineAudio();
+
 loadF1Model()
   .then(() => {
     lobbyStatus.textContent = '';
-    const game = new Game(canvas, { preview: true });
+    const game = new Game(canvas, { preview: true, engineAudio });
     const lobby = new Lobby({
+      engineAudio,
       onStart: (config) => {
         hud.classList.remove('hidden');
         game.startSession(config);

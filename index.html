@@ -35,56 +35,89 @@
       </div>
 
       <div id="lobby-backdrop">
-        <div id="lobby-modal">
-          <div class="lobby-brand">Cursor F1</div>
-          <p class="lobby-sub">Circuit de Monaco</p>
+        <div id="lobby-modal" class="f1-panel">
+          <div class="f1-panel-accent"></div>
 
-          <label class="lobby-label" for="player-name">Driver name</label>
-          <input id="player-name" type="text" maxlength="20" placeholder="Your name" autocomplete="nickname" />
-
-          <label class="lobby-label" for="lap-count">Laps</label>
-          <select id="lap-count">
-            <option value="1">1 lap</option>
-            <option value="2">2 laps</option>
-            <option value="3" selected>3 laps</option>
-            <option value="5">5 laps</option>
-            <option value="10">10 laps</option>
-          </select>
-
-          <div class="mode-toggle">
-            <button type="button" id="mode-bots" class="mode-btn active">Solo vs Bots</button>
-            <button type="button" id="mode-friends" class="mode-btn">Friends Online</button>
+          <div class="lobby-header-bar">
+            <div class="lobby-stat">
+              <span class="label">Series</span>
+              <span class="value">CURSOR F1</span>
+            </div>
+            <div class="lobby-stat">
+              <span class="label">Circuit</span>
+              <span class="value">MONACO</span>
+            </div>
+            <div class="lobby-stat">
+              <span class="label">Session</span>
+              <span class="value" id="lobby-session">RACE</span>
+            </div>
           </div>
 
-          <div id="bots-panel">
-            <button type="button" id="play-bots" class="lobby-primary">Race</button>
+          <div class="lobby-title-row">
+            <h1 class="lobby-brand">Race Control</h1>
+            <span class="lobby-live">● LIVE</span>
+          </div>
+
+          <div class="lobby-audio-row">
+            <button type="button" id="toggle-audio" class="lobby-audio-btn">Engine On</button>
+          </div>
+
+          <div class="f1-section">
+            <div class="f1-section-head">Driver</div>
+            <label class="lobby-label" for="player-name">Name</label>
+            <input id="player-name" type="text" maxlength="20" placeholder="Enter driver name" autocomplete="nickname" />
+          </div>
+
+          <div class="f1-section f1-section-inline">
+            <div class="f1-field">
+              <label class="lobby-label" for="lap-count">Laps</label>
+              <select id="lap-count" class="f1-select">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3" selected>3</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+              </select>
+            </div>
+            <div class="f1-field">
+              <span class="lobby-label">Mode</span>
+              <div class="mode-toggle">
+                <button type="button" id="mode-bots" class="mode-btn active">Solo</button>
+                <button type="button" id="mode-friends" class="mode-btn">Online</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="bots-panel" class="f1-section">
+            <button type="button" id="play-bots" class="lobby-primary f1-go-btn">▶ Start Session</button>
           </div>
 
           <div id="friends-panel" class="hidden">
-            <div class="friends-actions">
-              <button type="button" id="create-room" class="lobby-secondary">Create Room</button>
-              <div class="join-row">
-                <input id="room-code" type="text" maxlength="6" placeholder="Room code" autocapitalize="characters" />
-                <button type="button" id="join-room" class="lobby-secondary">Join</button>
+            <div class="f1-section">
+              <div class="f1-section-head">Multiplayer</div>
+              <div class="friends-actions">
+                <button type="button" id="create-room" class="lobby-secondary">Create Room</button>
+                <div class="join-row">
+                  <input id="room-code" type="text" maxlength="6" placeholder="ROOM" autocapitalize="characters" />
+                  <button type="button" id="join-room" class="lobby-secondary">Join</button>
+                </div>
               </div>
             </div>
 
-            <div id="room-info" class="hidden">
-              <div class="room-meta">
-                <span class="room-label">Drivers</span>
-                <ul id="player-list"></ul>
-              </div>
-              <label class="lobby-label" for="invite-link">Invite link</label>
+            <div id="room-info" class="f1-section hidden">
+              <div class="f1-section-head">Grid</div>
+              <ul id="player-list"></ul>
+              <label class="lobby-label" for="invite-link">Invite</label>
               <div class="invite-row">
                 <input id="invite-link" type="text" readonly />
                 <button type="button" id="copy-link" class="lobby-secondary">Copy</button>
               </div>
-              <button type="button" id="start-race" class="lobby-primary" disabled>Start Race</button>
-              <p class="room-hint">Max 3 players · Start unlocks when a friend joins</p>
+              <button type="button" id="start-race" class="lobby-primary f1-go-btn" disabled>▶ Start Race</button>
+              <p class="room-hint">Max 3 drivers · unlocks when a friend joins</p>
             </div>
           </div>
 
-          <p id="lobby-status"></p>
+          <p id="lobby-status" class="lobby-status-bar"></p>
         </div>
       </div>
     </div>

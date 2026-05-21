@@ -4,10 +4,12 @@ const TEAMS = ['audi', 'mercedes', 'ferrari', 'mclaren'];
 
 export class Lobby {
   /**
-   * @param {{ onStart: (config: object) => void, onPreviewReady?: () => void }} opts
+   * @param {{ onStart: (config: object) => void, engineAudio?: import('../game/EngineAudio.js').EngineAudio }} opts
    */
-  constructor({ onStart }) {
+  constructor({ onStart, engineAudio }) {
     this.onStart = onStart;
+    this.engineAudio = engineAudio ?? null;
+    this.audioEnabled = true;
     this.network = new NetworkClient();
     this.mode = 'bots';
     this.roomState = null;
@@ -30,12 +32,35 @@ export class Lobby {
       copyLink: document.getElementById('copy-link'),
       startRace: document.getElementById('start-race'),
       playBots: document.getElementById('play-bots'),
+      toggleAudio: document.getElementById('toggle-audio'),
     };
 
     this._bindEvents();
     this._wireNetwork();
     this._readUrlRoom();
     this.setMode('bots');
+    this._bindAudioUnlock();
+  }
+
+  _bindAudioUnlock() {
+    const unlock = () => {
+      this.engineAudio?.unlock();
+    };
+    this.el.backdrop.addEventListener('click', unlock, { once: false });
+    this.el.backdrop.addEventListener('keydown', unlock, { once: false });
+
+    if (this.el.toggleAudio) {
+      this.el.toggleAudio.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!this.engineAudio?.unlocked) {
+          this.engineAudio?.unlock();
+        }
+        this.audioEnabled = !this.audioEnabled;
+        this.engineAudio?.setEnabled(this.audioEnabled);
+        this.el.toggleAudio.textContent = this.audioEnabled ? 'Engine On' : 'Engine Off';
+        this.el.toggleAudio.classList.toggle('muted', !this.audioEnabled);
+      });
+    }
   }
 
   show() {
@@ -224,8 +249,8 @@ export class Lobby {
       this.el.startRace.classList.remove('hidden');
       this.el.startRace.disabled = !canStart;
       this.el.startRace.textContent = canStart
-        ? 'Start Race'
-        : `Start Race (${Math.max(0, 2 - playerCount)} more needed)`;
+        ? '▶ Start Race'
+        : `▶ Start Race (${Math.max(0, 2 - playerCount)} more)`;
     } else {
       this.el.startRace.classList.add('hidden');
     }

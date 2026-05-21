@@ -12,6 +12,7 @@ export class Lobby {
     this.audioEnabled = true;
     this.network = new NetworkClient();
     this.mode = 'bots';
+    this.driveMode = 'assisted';
     this.roomState = null;
 
     this.el = {
@@ -21,6 +22,8 @@ export class Lobby {
       status: document.getElementById('lobby-status'),
       modeBots: document.getElementById('mode-bots'),
       modeFriends: document.getElementById('mode-friends'),
+      driveAssisted: document.getElementById('drive-assisted'),
+      driveRaw: document.getElementById('drive-raw'),
       botsPanel: document.getElementById('bots-panel'),
       friendsPanel: document.getElementById('friends-panel'),
       createRoom: document.getElementById('create-room'),
@@ -40,6 +43,12 @@ export class Lobby {
     this._readUrlRoom();
     this.setMode('bots');
     this._bindAudioUnlock();
+  }
+
+  setDriveMode(mode) {
+    this.driveMode = mode;
+    this.el.driveAssisted?.classList.toggle('active', mode === 'assisted');
+    this.el.driveRaw?.classList.toggle('active', mode === 'raw');
   }
 
   _bindAudioUnlock() {
@@ -90,6 +99,8 @@ export class Lobby {
   _bindEvents() {
     this.el.modeBots.addEventListener('click', () => this.setMode('bots'));
     this.el.modeFriends.addEventListener('click', () => this.setMode('friends'));
+    this.el.driveAssisted?.addEventListener('click', () => this.setDriveMode('assisted'));
+    this.el.driveRaw?.addEventListener('click', () => this.setDriveMode('raw'));
 
     this.el.playBots.addEventListener('click', () => this._startBots());
 
@@ -159,6 +170,10 @@ export class Lobby {
     return Number(this.el.laps.value) || 3;
   }
 
+  _getDriveMode() {
+    return this.driveMode === 'raw' ? 'raw' : 'assisted';
+  }
+
   async _ensureConnected() {
     try {
       await this.network.connect();
@@ -178,6 +193,7 @@ export class Lobby {
       mode: 'bots',
       playerName: name,
       totalLaps: this._getLaps(),
+      driveMode: this._getDriveMode(),
       players: this._soloPlayers(name),
     });
   }
@@ -185,9 +201,9 @@ export class Lobby {
   _soloPlayers(name) {
     return [
       { id: 'local', name, team: TEAMS[0], isLocal: true, isAI: false },
-      { id: 'ai1', name: 'Hamilton', team: TEAMS[1], isLocal: false, isAI: true, skill: 0.88, aggression: 0.45 },
-      { id: 'ai2', name: 'Leclerc', team: TEAMS[2], isLocal: false, isAI: true, skill: 0.91, aggression: 0.55 },
-      { id: 'ai3', name: 'Norris', team: TEAMS[3], isLocal: false, isAI: true, skill: 0.90, aggression: 0.5 },
+      { id: 'ai1', name: 'Hamilton', team: TEAMS[1], isLocal: false, isAI: true, skill: 0.96, aggression: 0.55 },
+      { id: 'ai2', name: 'Leclerc', team: TEAMS[2], isLocal: false, isAI: true, skill: 0.97, aggression: 0.62 },
+      { id: 'ai3', name: 'Norris', team: TEAMS[3], isLocal: false, isAI: true, skill: 0.965, aggression: 0.58 },
     ];
   }
 
@@ -273,6 +289,7 @@ export class Lobby {
       mode: 'online',
       playerName: local?.name || this.el.name.value.trim(),
       totalLaps: msg.laps,
+      driveMode: this._getDriveMode(),
       players: roster,
       networkClient: this.network,
       localPlayerId: this.network.playerId,
@@ -281,35 +298,13 @@ export class Lobby {
   }
 
   _buildOnlineRoster(humans, localPlayer) {
-    const roster = humans.map((p) => ({
+    return humans.map((p) => ({
       id: p.id,
       name: p.name,
       team: p.team,
       isLocal: p.id === localPlayer?.id,
       isAI: false,
     }));
-
-    const aiNames = [
-      { name: 'Hamilton', team: TEAMS[1], skill: 0.88, aggression: 0.45 },
-      { name: 'Leclerc', team: TEAMS[2], skill: 0.91, aggression: 0.55 },
-      { name: 'Norris', team: TEAMS[3], skill: 0.90, aggression: 0.5 },
-    ];
-
-    let aiIdx = 0;
-    while (roster.length < 4 && aiIdx < aiNames.length) {
-      const ai = aiNames[aiIdx++];
-      roster.push({
-        id: `ai_${aiIdx}`,
-        name: ai.name,
-        team: ai.team,
-        isLocal: false,
-        isAI: true,
-        skill: ai.skill,
-        aggression: ai.aggression,
-      });
-    }
-
-    return roster;
   }
 
   async _copyInvite() {

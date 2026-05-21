@@ -169,10 +169,10 @@ export function createAICar({ name, team, skill = 0.9, aggression = 0.5 }) {
   return car;
 }
 
-export function createRemoteCar({ name, team, remoteId }) {
+export function createRemoteCar({ name, team, remoteId, id }) {
   const car = new Car({ name, team, isPlayer: false });
   car.isRemote = true;
-  car.remoteId = remoteId;
+  car.remoteId = remoteId ?? id;
   return car;
 }
 

@@ -126,6 +126,7 @@ export class Game {
     this.initRace(config);
 
     const prompt = document.getElementById('start-prompt');
+    const raw = config.driveMode === 'raw';
     if (config.mode === 'online') {
       prompt.textContent = 'Waiting for lights out…';
       this._scheduleOnlineStart(config.raceStartAt);
@@ -137,7 +138,9 @@ export class Game {
       );
       this.multiplayer.start();
     } else {
-      prompt.textContent = 'Press ↑ when ready — use ← → through every corner';
+      prompt.textContent = raw
+        ? 'Press ↑ when ready — RAW: precise ← → counter-steer every corner'
+        : 'Press ↑ when ready — use ← → through every corner';
       prompt.classList.remove('hidden');
     }
   }
@@ -179,6 +182,7 @@ export class Game {
 
     const players = config.players ?? this._defaultPlayers();
     this.totalLaps = config.totalLaps ?? this.trackDef.totalLaps;
+    const driveMode = config.driveMode ?? 'assisted';
 
     players.forEach((p, i) => {
       let car;
@@ -189,7 +193,7 @@ export class Game {
         car = createAICar(p);
         this.aiCars.push(car);
       } else {
-        car = createRemoteCar(p);
+        car = createRemoteCar({ name: p.name, team: p.team, remoteId: p.id });
       }
 
       const slot = this.trackDef.grid[i] ?? this.trackDef.grid[this.trackDef.grid.length - 1];
@@ -207,6 +211,7 @@ export class Game {
           trackWidth: this.trackWidth,
           isPlayer: car.isPlayer,
           skill: p.isLocal ? 1 : p.skill ?? 0.9,
+          driveMode: car.isPlayer ? driveMode : 'assisted',
         });
       }
 
@@ -248,9 +253,9 @@ export class Game {
   _defaultPlayers() {
     return [
       { id: 'local', name: 'You', team: 'audi', isLocal: true, isAI: false },
-      { id: 'ai1', name: 'Hamilton', team: 'mercedes', isLocal: false, isAI: true, skill: 0.88, aggression: 0.45 },
-      { id: 'ai2', name: 'Leclerc', team: 'ferrari', isLocal: false, isAI: true, skill: 0.91, aggression: 0.55 },
-      { id: 'ai3', name: 'Norris', team: 'mclaren', isLocal: false, isAI: true, skill: 0.90, aggression: 0.5 },
+      { id: 'ai1', name: 'Hamilton', team: 'mercedes', isLocal: false, isAI: true, skill: 0.96, aggression: 0.55 },
+      { id: 'ai2', name: 'Leclerc', team: 'ferrari', isLocal: false, isAI: true, skill: 0.97, aggression: 0.62 },
+      { id: 'ai3', name: 'Norris', team: 'mclaren', isLocal: false, isAI: true, skill: 0.965, aggression: 0.58 },
     ];
   }
 
@@ -472,7 +477,7 @@ export class Game {
 
     this.race.update(dt, this.player.physics);
     this.updatePlayer(dt);
-    this.updateAI(dt);
+    if (this.session?.mode !== 'online') this.updateAI(dt);
     this.updateRemote(dt);
     this.multiplayer?.update(dt);
     this.updateCars(dt);

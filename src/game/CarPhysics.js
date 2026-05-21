@@ -1,20 +1,48 @@
 import * as THREE from 'three';
 
+const DRIVE_PROFILES = {
+  assisted: {
+    maxSpeed: 84,
+    peakDriveForce: 10800,
+    baseGrip: 14,
+    driftCoeff: 0.42,
+    steerAccel: 48,
+    lateralDamping: 4.2,
+    headingSteerRate: 2.2,
+    latGripMult: 0.78,
+    cornerBleed: 1.4,
+    steerForgiveness: 1.6,
+    headingDecay: 2.0,
+  },
+  raw: {
+    maxSpeed: 96,
+    peakDriveForce: 12500,
+    baseGrip: 9.5,
+    driftCoeff: 0.78,
+    steerAccel: 58,
+    lateralDamping: 2.2,
+    headingSteerRate: 2.9,
+    latGripMult: 0.58,
+    cornerBleed: 3.2,
+    steerForgiveness: 0.85,
+    headingDecay: 0.4,
+  },
+};
+
 /**
- * Driver-controlled physics — no hidden auto-steer.
- *
- * Fixes for "automatic turning":
- * 1. Drift only in confirmed corners (smoothed curvature + turn direction)
- * 2. Heading changes ONLY from steer input — never from lateral velocity
- * 3. Must actively counter-steer in corners or lose speed (not auto-slide)
+ * Driver-controlled physics with assisted or raw F1 profiles.
+ * Raw mode: low forgiveness — precise counter-steer required in every corner.
  */
 export class CarPhysics {
-  constructor({ trackLength, trackWidth, isPlayer = false, skill = 1 }) {
+  constructor({ trackLength, trackWidth, isPlayer = false, skill = 1, driveMode = 'assisted' }) {
     this.trackLength = trackLength;
     this.trackWidth = trackWidth;
     this.halfWidth = trackWidth * 0.43;
     this.isPlayer = isPlayer;
     this.skill = skill;
+    this.driveMode = isPlayer ? driveMode : 'assisted';
+
+    const profile = DRIVE_PROFILES[this.driveMode] ?? DRIVE_PROFILES.assisted;
 
     this.s = 0;
     this.v = 0;
@@ -27,26 +55,28 @@ export class CarPhysics {
     this.lastS = 0;
     this.lastSteer = 0;
 
-    this.maxSpeed = isPlayer ? 88 : 84 + skill * 5;
-    this.peakDriveForce = isPlayer ? 11000 : 9800 + skill * 1200;
+    this.maxSpeed = isPlayer ? profile.maxSpeed : 88 + skill * 8;
+    this.peakDriveForce = isPlayer ? profile.peakDriveForce : 10500 + skill * 1800;
     this.dragCoeff = 0.55;
     this.rollingResistance = 70;
     this.maxBrakeForce = 32000;
 
-    this.baseGrip = 12;
+    this.baseGrip = isPlayer ? profile.baseGrip : 12 + skill * 2;
     this.downforceCoeff = 0.012;
-    this.driftCoeff = isPlayer ? 0.55 : 0.5 + skill * 0.06;
-    this.steerAccel = isPlayer ? 50 : 44 + skill * 5;
-    this.lateralDamping = 3.2;
-    this.headingSteerRate = isPlayer ? 2.4 : 2.0;
+    this.driftCoeff = isPlayer ? profile.driftCoeff : 0.52 + skill * 0.08;
+    this.steerAccel = isPlayer ? profile.steerAccel : 46 + skill * 6;
+    this.lateralDamping = isPlayer ? profile.lateralDamping : 3.0;
+    this.headingSteerRate = isPlayer ? profile.headingSteerRate : 2.2 + skill * 0.3;
+    this.latGripMult = profile.latGripMult;
+    this.cornerBleed = profile.cornerBleed;
+    this.steerForgiveness = profile.steerForgiveness;
+    this.headingDecay = profile.headingDecay;
 
     this.wallHitTimer = 0;
     this.lastWallImpact = 0;
     this.draftBoost = 1;
 
-    /** Distance driven since last counted lap crossing */
     this.distanceThisLap = 0;
-    /** Ignore SF line until a meaningful portion of the lap is complete */
     this.minLapDistance = trackLength * 0.88;
   }
 
@@ -93,11 +123,12 @@ export class CarPhysics {
     const side = Math.sign(this.lateral) || 1;
     const penetration = Math.abs(this.lateral) - this.halfWidth;
     const impact = this.v * (1 + penetration * 3);
+    const wallPenalty = this.driveMode === 'raw' ? 1.25 : 1;
 
     this.lateral = side * this.halfWidth * 0.88;
-    this.lateralVel = -this.lateralVel * 0.35 - side * impact * 0.015;
-    this.v *= 1 - THREE.MathUtils.clamp(impact * 0.005, 0.15, 0.65);
-    this.heading += side * THREE.MathUtils.clamp(impact * 0.002, 0.05, 0.45);
+    this.lateralVel = -this.lateralVel * 0.35 - side * impact * 0.015 * wallPenalty;
+    this.v *= 1 - THREE.MathUtils.clamp(impact * 0.005 * wallPenalty, 0.15, 0.72);
+    this.heading += side * THREE.MathUtils.clamp(impact * 0.002 * wallPenalty, 0.05, 0.55);
 
     this.wallHitTimer = THREE.MathUtils.clamp(0.25 + impact * 0.003, 0.25, 0.9);
     this.lastWallImpact = impact;
@@ -112,10 +143,9 @@ export class CarPhysics {
 
     if (this.wallHitTimer > 0) {
       this.wallHitTimer -= safeDt;
-      throttle *= 0.35;
+      throttle *= this.driveMode === 'raw' ? 0.25 : 0.35;
     }
 
-    // Longitudinal
     let drive = 0;
     if (throttle > 0) {
       const powerBand = 1 - Math.pow(this.v / this.maxSpeed, 2.2);
@@ -124,31 +154,27 @@ export class CarPhysics {
 
     const drag = this.dragCoeff * this.v * this.v;
     let longAccel = (drive - drag - this.rollingResistance - brake * this.maxBrakeForce) / 798;
-    longAccel = THREE.MathUtils.clamp(longAccel, -70, 32);
+    longAccel = THREE.MathUtils.clamp(longAccel, -70, 34);
 
     const inCorner = curvature > 0.001 && turnDirection !== 0;
     const speedFactor = THREE.MathUtils.clamp(this.v / 40, 0.2, 1);
 
-    // In corners: must counter-steer or lose speed (no free auto-drift slide)
     if (inCorner && this.v > 12) {
-      const neededSteer = -turnDirection; // left turn needs steer left (-1)
-      const steerMatch = 1 - Math.min(1, Math.abs(steer - neededSteer) / 1.5);
+      const neededSteer = -turnDirection;
+      const steerMatch = 1 - Math.min(1, Math.abs(steer - neededSteer) / this.steerForgiveness);
 
-      // Gentle outward push only in real corners, scaled by speed
-      const drift = this.v * this.v * curvature * turnDirection * this.driftCoeff * (1 - steerMatch * 0.85);
+      const drift = this.v * this.v * curvature * turnDirection * this.driftCoeff * (1 - steerMatch * 0.9);
       this.lateralVel += drift * safeDt;
 
-      // Not counter-steering = bleed speed (you feel the corner fighting you)
-      if (steerMatch < 0.5) {
-        this.v = Math.max(0, this.v - (1 - steerMatch) * curvature * this.v * 1.8 * safeDt);
+      if (steerMatch < 0.55) {
+        this.v = Math.max(0, this.v - (1 - steerMatch) * curvature * this.v * this.cornerBleed * safeDt);
       }
     }
 
-    // Driver steering — only source of intentional lateral movement
     this.lateralVel += steer * this.steerAccel * speedFactor * safeDt;
     this.lateralVel *= Math.exp(-this.lateralDamping * safeDt);
 
-    const maxLatVel = grip * 0.75;
+    const maxLatVel = grip * this.latGripMult;
     this.lateralVel = THREE.MathUtils.clamp(this.lateralVel, -maxLatVel, maxLatVel);
     this.lateral += this.lateralVel * safeDt;
 
@@ -159,11 +185,9 @@ export class CarPhysics {
 
     this.v = Math.max(0, Math.min(this.v + longAccel * safeDt, this.maxSpeed * (1 + (this.draftBoost - 1) * 0.4)));
 
-    // Heading: ONLY from steer input — never auto-follows track
     this.heading += steer * this.headingSteerRate * speedFactor * safeDt;
-    // Slow return to neutral only on straights when not steering
     if (!inCorner && Math.abs(steer) < 0.05) {
-      this.heading *= 1 - 1.5 * safeDt;
+      this.heading *= 1 - this.headingDecay * safeDt;
     }
 
     this.s += this.v * safeDt;
